@@ -56,3 +56,6 @@ A 3D Slicer extension for measuring the volume of breast implants
 
 ## Developers
 Developed by Lance Levine and Marc Levine. Special thanks to Dr. Wrood Kassira.
+
+## License
+This extension uses the Slicer license (https://github.com/Slicer/Slicer/blob/master/License.txt)
