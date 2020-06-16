@@ -1,13 +1,13 @@
-# ImplantSizer
+# BreastImplantAnalyzer
 A 3D Slicer extension for measuring the volume of breast implants
 
-![Alt text](Screenshot01.PNG?raw=true "ImplantSizer User Interface")
+![Alt text](Screenshot01.PNG?raw=true "BreastImplantAnalyzer User Interface")
 
 ## Installation
 
 * Download and install the latest preview release version of 3D Slicer (https://download.slicer.org).
 * Start 3D Slicer application, open the Extension Manager (menu: View / Extension manager)
-* Install ImplantSizer extension.
+* Install BreastImplantAnalyzer extension.
 
 ## Tutorial
 
