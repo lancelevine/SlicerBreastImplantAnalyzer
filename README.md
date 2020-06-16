@@ -1,5 +1,5 @@
 # BreastImplantAnalyzer
-A 3D Slicer extension for measuring the volume of breast implants
+A 3D Slicer extension for analyzing breast implants. Current functionality includes volume calculation.
 
 ![Alt text](Screenshot01.PNG?raw=true "BreastImplantAnalyzer User Interface")
 
@@ -37,7 +37,7 @@ A 3D Slicer extension for measuring the volume of breast implants
 
 ![Alt text](img/adjust.PNG?raw=true "Select input volume")
 
-8. Click 'apply'
+8. Click 'Calculate Volume'
 
 9. Click inside the implant
 
