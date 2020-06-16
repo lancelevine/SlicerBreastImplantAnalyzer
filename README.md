@@ -53,6 +53,8 @@ A 3D Slicer extension for measuring the volume of breast implants
 
 ![Alt text](img/volume.PNG?raw=true "The final volume calculation")
 
+## Sample Data
+A sample breast MRI has been included for testing purposes. The implants are 350cc bilaterally, although the left implant has a leak.
 
 ## Developers
 Developed by Lance Levine and Marc Levine. Special thanks to Dr. Wrood Kassira.
