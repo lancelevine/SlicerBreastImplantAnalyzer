@@ -29,6 +29,22 @@ If too much of the surrounding tissue is highlighted, try increasing 'Seed Local
     self.parent.acknowledgementText = """
 This module was written by Lance Levine and Marc Levine, with the help of Dr. Kassira.
 """  # TODO: replace with organization, grant and thanks.
+        # Trigger the menu to be added when application has started up
+    slicer.app.connect("startupCompleted()", self.registerSampleData)
+
+  def registerSampleData(self):
+    # Add data sets to SampleData module
+    iconsPath = os.path.join(os.path.dirname(self.parent.path), 'Resources/Icons')
+    import SampleData
+    SampleData.SampleDataLogic.registerCustomSampleDataSource(
+      category='BreastImplantAnalyzer',
+      sampleName='MRBreastImplant',
+      uris='https://github.com/lancelevine/SlicerBreastImplantAnalyzer/raw/master/SampleData/MRBreastImplant.nrrd',
+      fileNames='MRBreastImplant.nrrd',
+      nodeNames='MRBreastImplant',
+      thumbnailFileName=os.path.join(iconsPath, 'MRBreastImplant.png'),
+      loadFileType='Volume'
+      )
 
 #
 # BreastImplantAnalyzerWidget
@@ -98,14 +114,13 @@ class BreastImplantAnalyzerWidget(ScriptedLoadableModuleWidget, VTKObservationMi
     #self.ui.invertOutputCheckBox.connect("toggled(bool)", self.updateParameterNodeFromGUI)
     #self.invertedOutputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
 
+    self.ui.final_volume_label.visible = False
+    self.ui.error_label.visible = False
+
     # Initial GUI update
     self.updateGUIFromParameterNode()
     
-    self.phase_zero = 1
-    self.phase_one = 0
-    self.phase_two = 0
-    self.phase_three = 0
-    self.phase_four = 0
+    self.phase = 0
     
     self.oldLayout = 0
     
@@ -233,7 +248,6 @@ class BreastImplantAnalyzerWidget(ScriptedLoadableModuleWidget, VTKObservationMi
   def onPointAddedEvent(self, caller, event, call_data):
     #logging.info(str(self.fidNode.GetNumberOfFiducials()))
     #logging.info("marked")
-    #logging.info(str(self.phase_zero) + str(self.phase_one) + str(self.phase_two) + str(self.phase_three))
     layoutManager = slicer.app.layoutManager()
     red = layoutManager.sliceWidget('Red')
     redLogic = red.sliceLogic()
@@ -251,45 +265,38 @@ class BreastImplantAnalyzerWidget(ScriptedLoadableModuleWidget, VTKObservationMi
     
     #redLogic.SetSliceOffset(int(dimen[2] / 2))
 
-    #if self.phase_one is 1 and self.fidNode.GetNumberOfFiducials() > (self.initial_fiducial_count+3):
-    #    #redLogic.SetSliceOffset(int(dimen[2] / 2))
-     #   self.phase_one = 1
-    if self.phase_zero:
+    if self.phase == 0:
         if self.fidNode.GetNumberOfFiducials() > (self.initial_fiducial_count+1):
             self.ui.final_volume_label.text = "Click OUTSIDE the boundary of the implant " + str(5-(self.fidNode.GetNumberOfFiducials()-(self.initial_fiducial_count+1))) + " times"
+            self.ui.final_volume_label.visible = True
         if self.fidNode.GetNumberOfFiducials() > (self.initial_fiducial_count+5):
             #redLogic.SetSliceOffset(int(dimen[2] / 10))
             redLogic.SetSliceOffset((slicedim / 10) + points[4]) 
-            self.phase_zero = 0
-            self.phase_one = 1
-        
-    if self.phase_one:
+            self.phase += 1
+    elif self.phase == 1:
         self.ui.final_volume_label.text = "Click OUTSIDE the boundary of the implant " + str(2-(self.fidNode.GetNumberOfFiducials()-(self.initial_fiducial_count+5))) + " times"
+        self.ui.final_volume_label.visible = True
         if self.fidNode.GetNumberOfFiducials() > (self.initial_fiducial_count+6):
             redLogic.SetSliceOffset((slicedim / 4) + points[4]) 
-            self.phase_one = 0
-            self.phase_two = 1
-            
-    if self.phase_two:
+            self.phase += 1
+    elif self.phase == 2:
         self.ui.final_volume_label.text = "Click OUTSIDE the boundary of the implant " + str(4-(self.fidNode.GetNumberOfFiducials()-(self.initial_fiducial_count+6))) + " times"
+        self.ui.final_volume_label.visible = True
         if self.fidNode.GetNumberOfFiducials() > (self.initial_fiducial_count+9):
             redLogic.SetSliceOffset((3 * slicedim / 4) + points[4])
-            self.phase_two = 0
-            self.phase_three = 1 
-
-    if self.phase_three:
+            self.phase += 1
+    if self.phase == 3:
         self.ui.final_volume_label.text = "Click OUTSIDE the boundary of the implant " + str(4-(self.fidNode.GetNumberOfFiducials()-(self.initial_fiducial_count+9))) + " times"
         if self.fidNode.GetNumberOfFiducials() > (self.initial_fiducial_count+12):
             redLogic.SetSliceOffset((9 * slicedim / 10) + points[4])
-            self.phase_three = 0
-            self.phase_four = 1 
-    
-    if self.phase_four:
+            self.phase += 1
+    if self.phase == 4:
         self.ui.final_volume_label.text = "Click OUTSIDE the boundary of the implant " + str(2-(self.fidNode.GetNumberOfFiducials()-(self.initial_fiducial_count+12))) + " times"
         if self.fidNode.GetNumberOfFiducials() > (self.initial_fiducial_count+13):
-            self.ui.final_volume_label.text = "Calculating implant volume..." 
+            self.ui.final_volume_label.text = "Calculating implant volume..."
+            slicer.app.processEvents()
             redLogic.SetSliceOffset(int(dimen[2] / 4))
-            self.phase_four = 0
+            self.phase = 0
             #switch back
     
             interactionNode = slicer.mrmlScene.GetNodeByID("vtkMRMLInteractionNodeSingleton")
@@ -395,13 +402,11 @@ class BreastImplantAnalyzerWidget(ScriptedLoadableModuleWidget, VTKObservationMi
     redLogic.SetSliceOffset((slicedim / 2) + points[4])
     
     self.ui.final_volume_label.text = "Click INSIDE the center of the implant"
+    self.ui.final_volume_label.visible=True
     
     self.initial_fiducial_count = self.fidNode.GetNumberOfFiducials()
     
-    self.phase_zero = 1
-    self.phase_one = 0
-    self.phase_two = 0
-    self.phase_three = 0
+    self.workflowPhase = 0
     
     #selectionNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSelectionNodeSingleton")
     #selectionNode.SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsFiducialNode")
