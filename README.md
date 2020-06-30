@@ -25,7 +25,7 @@ A 3D Slicer extension for analyzing breast implants. Current functionality inclu
 
 ![Alt text](img/Load.PNG?raw=true "Load DICOM")
 
-4.5 To try the module, "MRBreastImplant" sample data set can be used.
+4.5. To try the module, "MRBreastImplant" sample data set can be used.
 
 5. Switch to the ImplantSizer module
 
