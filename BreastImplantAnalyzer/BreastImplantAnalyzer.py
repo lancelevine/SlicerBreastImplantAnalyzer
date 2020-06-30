@@ -13,10 +13,13 @@ class BreastImplantAnalyzer(ScriptedLoadableModule):
 
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
-    self.parent.title = "Breast Implant Analyzer"  
-    self.parent.categories = ["Quantification"]  
-    self.parent.dependencies = []  # TODO: add here list of module names that this module requires
-    self.parent.contributors = ["Lance Levine (University of Miami Miller School of Medicine)", "Marc Levine (Penn State University College of Medicine)", "Dr. Wrood Kassira (University of Miami Department of Plastic & Reconstructive Surgery)"] 
+    self.parent.title = "Breast Implant Analyzer"
+    self.parent.categories = ["Quantification"]
+    self.parent.dependencies = []
+    self.parent.contributors = [
+      "Lance Levine (University of Miami Miller School of Medicine)",
+      "Marc Levine (Penn State University College of Medicine)",
+      "Dr. Wrood Kassira (University of Miami Department of Plastic & Reconstructive Surgery)"]
     self.parent.helpText = """
 This module calculates the size of a breast implant from breast MRI data. Use the 3D Slicer DICOM manager (purple arrow button at the top) to input a DICOM.
 Select the input data from the drop down and click 'apply'.
@@ -24,27 +27,24 @@ You may adjust contrast first to make the implants easier to see.
 You will be asked to click inside the implant, please click close to the center.
 On all future clicks, select outside the implant, but not too close to the border of the implant.
 If too much of the surrounding tissue is highlighted, try increasing 'Seed Locality' under the Advanced menu.
-"""  # TODO: update with short description of the module
-    self.parent.helpText += self.getDefaultModuleDocumentationLink()  # TODO: verify that the default URL is correct or change it to the actual documentation
-    self.parent.acknowledgementText = """
-This module was written by Lance Levine and Marc Levine, with the help of Dr. Kassira.
-"""  # TODO: replace with organization, grant and thanks.
-        # Trigger the menu to be added when application has started up
+See more information in <a href="https://github.com/lancelevine/SlicerBreastImplantAnalyzer#breastimplantanalyzer">module documentation</a>.
+"""
+    self.parent.acknowledgementText = """This module was written by Lance Levine and Marc Levine, with the help of Dr. Kassira."""
     slicer.app.connect("startupCompleted()", self.registerSampleData)
 
   def registerSampleData(self):
-    # Add data sets to SampleData module
+    # Add data set to Sample Data module
     iconsPath = os.path.join(os.path.dirname(self.parent.path), 'Resources/Icons')
     import SampleData
     SampleData.SampleDataLogic.registerCustomSampleDataSource(
-      category='BreastImplantAnalyzer',
+      category='Breast Implant Analyzer',
       sampleName='MRBreastImplant',
       uris='https://github.com/lancelevine/SlicerBreastImplantAnalyzer/raw/master/SampleData/MRBreastImplant.nrrd',
       fileNames='MRBreastImplant.nrrd',
       nodeNames='MRBreastImplant',
       thumbnailFileName=os.path.join(iconsPath, 'MRBreastImplant.png'),
-      loadFileType='Volume'
-      )
+      checksums = 'SHA256:4bbad3e4034005ddb06ac819bfae2ded2175838f733dfd6ee12f81787450258a'
+    )
 
 #
 # BreastImplantAnalyzerWidget
@@ -60,7 +60,24 @@ class BreastImplantAnalyzerWidget(ScriptedLoadableModuleWidget, VTKObservationMi
     VTKObservationMixin.__init__(self)  # needed for parameter node observation
     self.logic = None
     self._parameterNode = None
-    
+
+    customLayout = """
+      <layout type="horizontal">
+        <item>
+        <view class="vtkMRMLSliceNode" singletontag="Red">
+          <property name="orientation" action="default">Axial</property>
+          <property name="viewlabel" action="default">R</property>
+          <property name="viewcolor" action="default">#F34A33</property>
+        </view>
+        </item>
+      </layout>
+      """
+
+    # Built-in layout IDs are all below 100, so you can choose any large random number
+    # for your custom layout ID.
+    self.customLayoutId=503
+    layoutManager = slicer.app.layoutManager()
+    layoutManager.layoutLogic().GetLayoutNode().AddLayoutDescription(self.customLayoutId, customLayout)
 
   def setup(self):
     """
@@ -78,68 +95,37 @@ class BreastImplantAnalyzerWidget(ScriptedLoadableModuleWidget, VTKObservationMi
     # "setMRMLScene(vtkMRMLScene*)" slot.
     uiWidget.setMRMLScene(slicer.mrmlScene)
 
-    # Example of adding widgets dynamically (without Qt designer).
-    # This approach is not recommended, but only shown as an illustrative example.
-    parametersCollapsibleButton = ctk.ctkCollapsibleButton()
-    parametersCollapsibleButton.text = "More"
-    parametersCollapsibleButton.collapsed = True
-    self.layout.addWidget(parametersCollapsibleButton)
-    parametersFormLayout = qt.QFormLayout(parametersCollapsibleButton)
-    #self.invertedOutputSelector = slicer.qMRMLNodeComboBox()
-    #self.invertedOutputSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
-    #self.invertedOutputSelector.addEnabled = True
-    #self.invertedOutputSelector.removeEnabled = True
-    #self.invertedOutputSelector.noneEnabled = True
-    #self.invertedOutputSelector.setMRMLScene(slicer.mrmlScene)
-    #self.invertedOutputSelector.setToolTip("Result with inverted threshold will be written into this volume")
-    #parametersFormLayout.addRow("Inverted output volume: ", self.invertedOutputSelector)
-
     # Create a new parameterNode
     # This parameterNode stores all user choices in parameter values, node selections, etc.
     # so that when the scene is saved and reloaded, these settings are restored.
     self.logic = BreastImplantAnalyzerLogic()
-    self.ui.parameterNodeSelector.addAttribute("vtkMRMLScriptedModuleNode", "ModuleName", self.moduleName)
-    self.setParameterNode(self.logic.getParameterNode())
+
+    self.selectParameterNode()
 
     # Connections
-    self.ui.parameterNodeSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.setParameterNode)
-    self.ui.applyButton.connect('clicked(bool)', self.onApplyButton)
-    self.ui.contrastButton.connect('clicked(bool)', self.onContrastButton)
+    self.ui.startButton.connect('toggled(bool)', self.onStartButton)
+    self.ui.contrastButton.connect('toggled(bool)', self.onContrastButton)
 
     # These connections ensure that whenever user changes some settings on the GUI, that is saved in the MRML scene
     # (in the selected parameter node).
     self.ui.inputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
-    #self.ui.outputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
-    self.ui.imageThresholdSliderWidget.connect("valueChanged(double)", self.updateParameterNodeFromGUI)
-    #self.ui.invertOutputCheckBox.connect("toggled(bool)", self.updateParameterNodeFromGUI)
-    #self.invertedOutputSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.updateParameterNodeFromGUI)
+    self.ui.seedLocalitySliderWidget.connect("valueChanged(double)", self.updateParameterNodeFromGUI)
 
-    self.ui.final_volume_label.visible = False
-    self.ui.error_label.visible = False
+    # Connect observers to scene events
+    self.addObserver(slicer.mrmlScene, slicer.mrmlScene.StartCloseEvent, self.onSceneStartClose)
+    self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndCloseEvent, self.onSceneEndClose)
+    self.addObserver(slicer.mrmlScene, slicer.mrmlScene.EndImportEvent, self.onSceneEndImport)
+
+    self.ui.resultLabel.text = ""
 
     # Initial GUI update
     self.updateGUIFromParameterNode()
-    
-    self.phase = 0
-    
-    self.oldLayout = 0
-    
-    self.autodisplay = False
-    self.inputDisplayWindow = 0.0
-    self.inputDisplayLevel = 0.0
-    
-    self.selectionNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSelectionNodeSingleton")
-    self.selectionNode.SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsFiducialNode")
-    slicer.modules.markups.logic().AddFiducial()
-    self.fidNode = slicer.util.getNode("vtkMRMLMarkupsFiducialNode1")
-    self.initial_fiducial_count = self.fidNode.GetNumberOfFiducials()
-    coords = [0.0, 0.0, 0.0]
-    self.fidNode.GetNthFiducialPosition(self.initial_fiducial_count-1, coords)
-    self.fidNode.GetDisplayNode().SetVisibility(False)
-    #logging.info(str(coords))
-    #self.fidNode.RemoveAllMarkups()
-    self.observerTag = self.fidNode.AddObserver(self.fidNode.PointAddedEvent, self.onPointAddedEvent)
-    
+
+    self.originalLayout = 0
+
+    self.fidNode = None
+    self.fidNodeObserverTag = None
+
     logging.info("Loaded module")
 
   def cleanup(self):
@@ -147,8 +133,39 @@ class BreastImplantAnalyzerWidget(ScriptedLoadableModuleWidget, VTKObservationMi
     Called when the application closes and the module widget is destroyed.
     """
     self.removeObservers()
-    self.fidNode.RemoveObserver(self.observerTag)
     logging.info("cleaning up")
+
+  def enter(self):
+    self.selectParameterNode()
+
+  def exit(self):
+    self.stopFiducialPlacement()
+    self.removeObservers()
+
+  def selectParameterNode(self):
+    # Ensure parameter node exists
+    self.setParameterNode(self.logic.getParameterNode())
+
+    # Select first volume node in the scene by default (if none is selected yet)
+    if not self._parameterNode.GetNodeReference("InputVolume"):
+        firstVolumeNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLScalarVolumeNode")
+        if firstVolumeNode:
+            self._parameterNode.SetNodeReferenceID("InputVolume", firstVolumeNode.GetID())
+
+    self.updateGUIFromParameterNode()
+
+  def onSceneStartClose(self, caller, event):
+    self.stopFiducialPlacement()
+    self._parameterNode = None
+    self.ui.resultLabel.text = ""
+
+  def onSceneEndClose(self, caller, event):
+    if self.parent.isEntered:
+      self.selectParameterNode()
+
+  def onSceneEndImport(self, caller, event):
+    if self.parent.isEntered:
+      self.selectParameterNode()
 
   def setParameterNode(self, inputParameterNode):
     """
@@ -158,11 +175,6 @@ class BreastImplantAnalyzerWidget(ScriptedLoadableModuleWidget, VTKObservationMi
 
     if inputParameterNode:
       self.logic.setDefaultParameters(inputParameterNode)
-
-    # Set parameter node in the parameter node selector widget
-    wasBlocked = self.ui.parameterNodeSelector.blockSignals(True)
-    self.ui.parameterNodeSelector.setCurrentNode(inputParameterNode)
-    self.ui.parameterNodeSelector.blockSignals(wasBlocked)
 
     if inputParameterNode == self._parameterNode:
       # No change
@@ -196,38 +208,30 @@ class BreastImplantAnalyzerWidget(ScriptedLoadableModuleWidget, VTKObservationMi
     # Need to temporarily block signals to prevent infinite recursion (MRML node update triggers
     # GUI update, which triggers MRML node update, which triggers GUI update, ...)
 
+    inputVolume = self._parameterNode.GetNodeReference("InputVolume")
+
     wasBlocked = self.ui.inputSelector.blockSignals(True)
-    self.ui.inputSelector.setCurrentNode(self._parameterNode.GetNodeReference("InputVolume"))
+    self.ui.inputSelector.setCurrentNode(inputVolume)
     self.ui.inputSelector.blockSignals(wasBlocked)
 
-    #wasBlocked = self.ui.outputSelector.blockSignals(True)
-    #self.ui.outputSelector.setCurrentNode(self._parameterNode.GetNodeReference("OutputVolume"))
-    #self.ui.outputSelector.blockSignals(wasBlocked)
-
-    #wasBlocked = self.invertedOutputSelector.blockSignals(True)
-    #self.invertedOutputSelector.setCurrentNode(self._parameterNode.GetNodeReference("OutputVolumeInverse"))
-    #self.invertedOutputSelector.blockSignals(wasBlocked)
-
-    wasBlocked = self.ui.imageThresholdSliderWidget.blockSignals(True)
-    self.ui.imageThresholdSliderWidget.value = float(self._parameterNode.GetParameter("Threshold"))
-    logging.info(self._parameterNode.GetParameter("Threshold"))
-    self.ui.imageThresholdSliderWidget.blockSignals(wasBlocked)
-
-    #wasBlocked = self.ui.invertOutputCheckBox.blockSignals(True)
-    #self.ui.invertOutputCheckBox.checked = (self._parameterNode.GetParameter("Invert") == "true")
-    #self.ui.invertOutputCheckBox.blockSignals(wasBlocked)
+    if self._parameterNode.GetParameter("SeedLocality"):
+        wasBlocked = self.ui.seedLocalitySliderWidget.blockSignals(True)
+        self.ui.seedLocalitySliderWidget.value = float(self._parameterNode.GetParameter("SeedLocality"))
+        self.ui.seedLocalitySliderWidget.blockSignals(wasBlocked)
 
     # Update buttons states and tooltips
-    #if self._parameterNode.GetNodeReference("InputVolume") and self._parameterNode.GetNodeReference("OutputVolume"):
-    if self._parameterNode.GetNodeReference("InputVolume"):
-    #  self.ui.applyButton.toolTip = "Compute output volume"
-        self.ui.applyButton.enabled = True
+    if inputVolume:
+        self.ui.startButton.toolTip = "Start point placement"
+        self.ui.startButton.enabled = True
         self.ui.contrastButton.enabled = True
     else:
-    #  self.ui.applyButton.toolTip = "Select input and output volume nodes"
-        self.ui.applyButton.toolTip = "Select input volume node"
-        self.ui.applyButton.enabled = False
+        self.ui.startButton.toolTip = "Select input volume node"
+        self.ui.startButton.enabled = False
         self.ui.contrastButton.enabled = False
+
+    wasBlocked = self.ui.contrastButton.blockSignals(True)
+    self.ui.contrastButton.setChecked(self.logic.isOriginalContrastAvailable(inputVolume))
+    self.ui.contrastButton.blockSignals(wasBlocked)
 
   def updateParameterNodeFromGUI(self, caller=None, event=None):
     """
@@ -239,218 +243,123 @@ class BreastImplantAnalyzerWidget(ScriptedLoadableModuleWidget, VTKObservationMi
       return
 
     self._parameterNode.SetNodeReferenceID("InputVolume", self.ui.inputSelector.currentNodeID)
-    #self._parameterNode.SetNodeReferenceID("OutputVolume", self.ui.outputSelector.currentNodeID)
-    self._parameterNode.SetParameter("Threshold", str(self.ui.imageThresholdSliderWidget.value))
-    #self._parameterNode.SetParameter("Invert", "true" if self.ui.invertOutputCheckBox.checked else "false")
-    #self._parameterNode.SetNodeReferenceID("OutputVolumeInverse", self.invertedOutputSelector.currentNodeID)
+    self._parameterNode.SetParameter("Threshold", str(self.ui.seedLocalitySliderWidget.value))
 
   @vtk.calldata_type(vtk.VTK_INT)
-  def onPointAddedEvent(self, caller, event, call_data):
-    #logging.info(str(self.fidNode.GetNumberOfFiducials()))
-    #logging.info("marked")
+  def onPointAddedEvent(self, caller=None, event=None, call_data=None):
+    if not self.fidNode:
+      # not in fiducial placement state
+      return
+
+    # Get slice logic and slider range
     layoutManager = slicer.app.layoutManager()
     red = layoutManager.sliceWidget('Red')
     redLogic = red.sliceLogic()
-    dimen = self.ui.inputSelector.currentNode().GetImageData().GetDimensions()
-    #logging.info("init " + str(self.initial_fiducial_count))
-    #logging.info("num " + str(self.fidNode.GetNumberOfFiducials()))
     import numpy as np
-    points = np.zeros((6,1 ))
-    redLogic.GetVolumeSliceBounds(self.ui.inputSelector.currentNode(), points)
-    slicedim = abs(points[4]) + abs(points[5])
-    
-    #logging.info("slicedim: " + str(slicedim))
-    
-    #logging.info("dimen " + str(points[0]) + str(points[1]) + str(points[2]) + str(points[3]) + str(points[4]) + str(points[5]))
-    
-    #redLogic.SetSliceOffset(int(dimen[2] / 2))
+    sliceBounds = np.zeros(6)
+    redLogic.GetVolumeSliceBounds(self.ui.inputSelector.currentNode(), sliceBounds)
+    sliceOffsetStart = sliceBounds[4]
+    sliceOffsetRange = abs(sliceBounds[4]-sliceBounds[5])
 
-    if self.phase == 0:
-        if self.fidNode.GetNumberOfFiducials() > (self.initial_fiducial_count+1):
-            self.ui.final_volume_label.text = "Click OUTSIDE the boundary of the implant " + str(5-(self.fidNode.GetNumberOfFiducials()-(self.initial_fiducial_count+1))) + " times"
-            self.ui.final_volume_label.visible = True
-        if self.fidNode.GetNumberOfFiducials() > (self.initial_fiducial_count+5):
-            #redLogic.SetSliceOffset(int(dimen[2] / 10))
-            redLogic.SetSliceOffset((slicedim / 10) + points[4]) 
-            self.phase += 1
-    elif self.phase == 1:
-        self.ui.final_volume_label.text = "Click OUTSIDE the boundary of the implant " + str(2-(self.fidNode.GetNumberOfFiducials()-(self.initial_fiducial_count+5))) + " times"
-        self.ui.final_volume_label.visible = True
-        if self.fidNode.GetNumberOfFiducials() > (self.initial_fiducial_count+6):
-            redLogic.SetSliceOffset((slicedim / 4) + points[4]) 
-            self.phase += 1
-    elif self.phase == 2:
-        self.ui.final_volume_label.text = "Click OUTSIDE the boundary of the implant " + str(4-(self.fidNode.GetNumberOfFiducials()-(self.initial_fiducial_count+6))) + " times"
-        self.ui.final_volume_label.visible = True
-        if self.fidNode.GetNumberOfFiducials() > (self.initial_fiducial_count+9):
-            redLogic.SetSliceOffset((3 * slicedim / 4) + points[4])
-            self.phase += 1
-    if self.phase == 3:
-        self.ui.final_volume_label.text = "Click OUTSIDE the boundary of the implant " + str(4-(self.fidNode.GetNumberOfFiducials()-(self.initial_fiducial_count+9))) + " times"
-        if self.fidNode.GetNumberOfFiducials() > (self.initial_fiducial_count+12):
-            redLogic.SetSliceOffset((9 * slicedim / 10) + points[4])
-            self.phase += 1
-    if self.phase == 4:
-        self.ui.final_volume_label.text = "Click OUTSIDE the boundary of the implant " + str(2-(self.fidNode.GetNumberOfFiducials()-(self.initial_fiducial_count+12))) + " times"
-        if self.fidNode.GetNumberOfFiducials() > (self.initial_fiducial_count+13):
-            self.ui.final_volume_label.text = "Calculating implant volume..."
-            slicer.app.processEvents()
-            redLogic.SetSliceOffset(int(dimen[2] / 4))
-            self.phase = 0
-            #switch back
-    
-            interactionNode = slicer.mrmlScene.GetNodeByID("vtkMRMLInteractionNodeSingleton")
-            interactionNode.SwitchToViewTransformMode()
-            # also turn off place mode persistence if required
-            interactionNode.SetPlaceModePersistence(0)
-            
-            # Calculate segmentation
-            try:
-                final_volume = self.logic.run(self.ui.inputSelector.currentNode(), self.ui.inputSelector.currentNode(), self.ui.imageThresholdSliderWidget.value, self.fidNode, self.initial_fiducial_count)
-                #if self.invertedOutputSelector.currentNode():
-                # If additional output volume is selected then result with inverted threshold is written there
-                #self.logic.run(self.ui.inputSelector.currentNode(),
-                #    self.ui.imageThresholdSliderWidget.value, not self.ui.invertOutputCheckBox.checked, showResult=False)
-                # Determine multiplier
+    numberOfPlacedFiducials = self.fidNode.GetNumberOfDefinedControlPoints()
+    if numberOfPlacedFiducials == 0:  # point 0
+      self.ui.resultLabel.text = "Click INSIDE the center of the implant"
+      redLogic.SetSliceOffset(sliceOffsetStart + sliceOffsetRange * 0.5)  # volume center
+    elif numberOfPlacedFiducials < 5: # point 1-4
+      self.ui.resultLabel.text = "Click OUTSIDE the implant " + str(5-numberOfPlacedFiducials) + " times"
+      redLogic.SetSliceOffset(sliceOffsetStart + sliceOffsetRange * 0.5)  # volume center
+    elif numberOfPlacedFiducials < 6: # point 5
+      self.ui.resultLabel.text = "Click OUTSIDE the implant " + str(6-numberOfPlacedFiducials) + " times"
+      redLogic.SetSliceOffset(sliceOffsetStart + sliceOffsetRange * 0.1)  # low 10%
+    elif numberOfPlacedFiducials < 9: # point 6-8
+      self.ui.resultLabel.text = "Click OUTSIDE the implant " + str(9-numberOfPlacedFiducials) + " times"
+      redLogic.SetSliceOffset(sliceOffsetStart + sliceOffsetRange * 0.25)  # low 25%
+    elif numberOfPlacedFiducials < 12: # point 9-11
+      self.ui.resultLabel.text = "Click OUTSIDE the implant " + str(12-numberOfPlacedFiducials) + " times"
+      redLogic.SetSliceOffset(sliceOffsetStart + sliceOffsetRange * 0.75)  # top 25%
+    elif numberOfPlacedFiducials < 13: # point 12
+      self.ui.resultLabel.text = "Click OUTSIDE the implant " + str(13-numberOfPlacedFiducials) + " times"
+      redLogic.SetSliceOffset(sliceOffsetStart + sliceOffsetRange * 0.9)  # top 10%
+    else:
+      # finished placing points
+      self.ui.resultLabel.text = "Calculating implant volume..."
+      slicer.app.processEvents()
+      # Calculate segmentation
+      try:
+          implantVolumeCc = self.logic.computeImplantVolumeCc(self.ui.inputSelector.currentNode(), self.fidNode, self.ui.seedLocalitySliderWidget.value)
+          self.ui.resultLabel.text = "Implant Volume: " + '{:.2f}'.format(implantVolumeCc)
+      except Exception as e:
+          slicer.util.errorDisplay("Failed to compute results: "+str(e))
+          self.ui.resultLabel.text = ""
+          import traceback
+          traceback.print_exc()
 
-                dim = self.ui.inputSelector.currentNode().GetImageData().GetDimensions()
+      layoutManager.setLayout(self.originalLayout)
+      redLogic.SetSliceOffset(sliceOffsetStart + sliceOffsetRange * 0.5)  # volume center
 
-                dim_multiplier = dim[0] / 256
-                dim_multiplier *= (dim[1] / 256)
-                
-                dim_multiplier = 1
-                
-                #logging.info(dim_multiplier)
+      self.ui.startButton.text = "Start"
+      wasBlocked = self.ui.startButton.blockSignals(True)  # block signals, otherwise toggle would cancel placement and clear results
+      self.ui.startButton.checked = False
+      self.ui.startButton.blockSignals(wasBlocked)
 
-                self.ui.final_volume_label.text = "Implant Volume: " + '{:.2f}'.format((float(final_volume) * int(dim_multiplier))) + "cc"
-                
-                layoutManager.setLayout(self.oldLayout)
+      # We are in a callback function of the markup fiducial, so we cannot directly
+      # delete the markup now. Instead we set up a timer and delete the node when the application will becomes idle.
+      qt.QTimer.singleShot(0, self.stopFiducialPlacement)
 
-                #self.ui.final_volume_label.text = "Implant Volume: " + str((float(final_volume) * int(dim_multiplier))) + "cc"
-                #self.ui.final_volume_label.text = "Implant Volume: " + str((float(final_volume) * float(3.78))) + " cc"
-
-                if dim[0] % 256 != 0 or dim[1] % 256 != 0:
-                    self.ui.error_label.text = "Invalid image dimensions, results may be skewed..."
-                
-                
-                logging.info(dim[0])
-            except Exception as e:
-                slicer.util.errorDisplay("Failed to compute results: "+str(e))
-                import traceback
-                traceback.print_exc()
-      
-
-    
-  def onContrastButton(self):
-   logging.info("Contrast button pressed" + str(self.inputDisplayWindow))
-   volumeNode = self.ui.inputSelector.currentNode()
-   displayNode = volumeNode.GetDisplayNode()
-   if self.autodisplay is False:
-    self.inputDisplayWindow = displayNode.GetWindow()
-    self.inputDisplayLevel = displayNode.GetLevel()
-    displayNode.AutoWindowLevelOn()
-    self.autodisplay = True
-   else:
-    displayNode.AutoWindowLevelOff()
-    displayNode.SetWindow(self.inputDisplayWindow)
-    displayNode.SetLevel(self.inputDisplayLevel)
-    self.autodisplay = False
-
-  def onApplyButton(self):
-    """
-    Run processing when user clicks "Apply" button.
-    """
-    dim = self.ui.inputSelector.currentNode().GetImageData().GetDimensions()
-    layoutManager = slicer.app.layoutManager()
-    self.oldLayout = layoutManager.layout
-    #logging.info("Layout: " + str(layoutManager.layout))
-    red = layoutManager.sliceWidget('Red')
-    redLogic = red.sliceLogic()
-    
-    customLayout = """
-    <layout type="horizontal">
-      <item>
-       <view class="vtkMRMLSliceNode" singletontag="Red">
-        <property name="orientation" action="default">Axial</property>
-        <property name="viewlabel" action="default">R</property>
-        <property name="viewcolor" action="default">#F34A33</property>
-       </view>
-      </item>
-    </layout>
-    """
-
-    # Built-in layout IDs are all below 100, so you can choose any large random number
-    # for your custom layout ID.
-    customLayoutId=503
-
-    layoutManager = slicer.app.layoutManager()
-    layoutManager.layoutLogic().GetLayoutNode().AddLayoutDescription(customLayoutId, customLayout)                                         
-
-    # Switch to the new custom layout 
-    layoutManager.setLayout(customLayoutId)
-    
-    red.sliceController().fitSliceToBackground()
-    
-    import numpy as np
-    points = np.zeros((6,1 ))
-    redLogic.GetVolumeSliceBounds(self.ui.inputSelector.currentNode(), points)
-    slicedim = abs(points[4]) + abs(points[5])
-    
-    #redLogic.SetSliceOffset(int(dim[2]/4))
-    
-    #redLogic.SetSliceOffset(int(dim[2] / 2))
-    redLogic.SetSliceOffset((slicedim / 2) + points[4])
-    
-    self.ui.final_volume_label.text = "Click INSIDE the center of the implant"
-    self.ui.final_volume_label.visible=True
-    
-    self.initial_fiducial_count = self.fidNode.GetNumberOfFiducials()
-    
-    self.workflowPhase = 0
-    
-    #selectionNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSelectionNodeSingleton")
-    #selectionNode.SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsFiducialNode")
-    #fidNode = slicer.util.getNode("vtkMRMLMarkupsFiducialNode1")
-    #fidNode.SetFiducialWorldCoordinates((1,0,5))
-    #fidNode.AddObserver(slicer.vtkMRMLMarkupsNode.MarkupAddedEvent, markupAdded())
+  def startFiducialPlacement(self):
     interactionNode = slicer.mrmlScene.GetNodeByID("vtkMRMLInteractionNodeSingleton")
-    placeModePersistence = 1
-    interactionNode.SetPlaceModePersistence(placeModePersistence)
-    # mode 1 is Place, can also be accessed via slicer.vtkMRMLInteractionNode().Place
-    interactionNode.SetCurrentInteractionMode(1)
-    #logging.info("int mode")
-    
-    
-    """try:
-      final_volume = self.logic.run(self.ui.inputSelector.currentNode(), self.ui.outputSelector.currentNode(),
-        self.ui.imageThresholdSliderWidget.value, self.ui.invertOutputCheckBox.checked)
-      if self.invertedOutputSelector.currentNode():
-        # If additional output volume is selected then result with inverted threshold is written there
-        self.logic.run(self.ui.inputSelector.currentNode(), self.invertedOutputSelector.currentNode(),
-          self.ui.imageThresholdSliderWidget.value, not self.ui.invertOutputCheckBox.checked, showResult=False)
-    except Exception as e:
-      slicer.util.errorDisplay("Failed to compute results: "+str(e))
-      import traceback
-      traceback.print_exc()
-      
+    if not self.fidNode:
+      self.fidNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode", "BreastImplantAnalyzerSeedPoints")
+      self.fidNode.SetSaveWithScene(False)  # temporary node, do not save with scene
+      self.fidNode.CreateDefaultDisplayNodes()
+      self.fidNode.GetDisplayNode().SetPointLabelsVisibility(False)
+      self.fidNode.RemoveAllMarkups()
+    if not self.fidNodeObserverTag:
+      self.fidNodeObserverTag = self.fidNode.AddObserver(self.fidNode.PointPositionDefinedEvent, self.onPointAddedEvent)
+    self.selectionNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSelectionNodeSingleton")
+    self.selectionNode.SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsFiducialNode")
+    interactionNode.SetPlaceModePersistence(True)
+    interactionNode.SetCurrentInteractionMode(slicer.vtkMRMLInteractionNode().Place)
 
-    # Determine multiplier
+  def stopFiducialPlacement(self):
+    interactionNode = slicer.mrmlScene.GetNodeByID("vtkMRMLInteractionNodeSingleton")
+    interactionNode.SwitchToViewTransformMode()
+    interactionNode.SetPlaceModePersistence(0)
+    if self.fidNodeObserverTag:
+      self.fidNode.RemoveObserver(self.fidNodeObserverTag)
+      self.fidNodeObserverTag = None
+    if self.fidNode:
+      slicer.mrmlScene.RemoveNode(self.fidNode)
+      self.fidNode = None
 
-    dim = self.ui.inputSelector.currentNode().GetImageData().GetDimensions()
+  def onContrastButton(self, pushed):
+    self.logic.setAutoContrast(pushed, self.ui.inputSelector.currentNode())
 
-    dim_multiplier = dim[0] / 256
-    dim_multiplier *= (dim[1] / 256)
-    
-    logging.info(dim_multiplier)
+  def onStartButton(self, start):
+    if start:
+      self.ui.startButton.text = "Cancel"
 
-    self.ui.final_volume_label.text = "Implant Volume: " + str((float(final_volume) * int(dim_multiplier))) + "cc"
+      # Set custom layout
+      layoutManager = slicer.app.layoutManager()
+      self.originalLayout = layoutManager.layout
+      layoutManager.setLayout(self.customLayoutId)
 
+      # Fit image in red slice view
+      red = layoutManager.sliceWidget('Red')
+      redLogic = red.sliceLogic()
+      red.sliceController().fitSliceToBackground()
 
-    if dim[0] % 256 != 0 or dim[1] % 256 != 0:
-        self.ui.error_label.text = "Invalid image dimensions, results may be skewed..."
-    
-    
-    logging.info(dim[0])"""
+      self.startFiducialPlacement()
+
+      # initial update
+      self.onPointAddedEvent()
+
+    else:
+      # Stop requested
+      self.ui.startButton.text = "Start"
+      self.ui.resultLabel.text = ""
+      self.stopFiducialPlacement()
+
 
 #
 # BreastImplantAnalyzerLogic
@@ -466,24 +375,54 @@ class BreastImplantAnalyzerLogic(ScriptedLoadableModuleLogic):
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
 
+  def __init__(self):
+    ScriptedLoadableModuleLogic.__init__(self)
+    self.segmentationNode = None
+
+  def isOriginalContrastAvailable(self, volumeNode):
+    if not volumeNode:
+      return False
+    originalWindow = volumeNode.GetAttribute("BreastImplantAnalyzer.OriginalWindow")
+    originalLevel = volumeNode.GetAttribute("BreastImplantAnalyzer.OriginalLevel")
+    return originalWindow and originalLevel
+
+  def setAutoContrast(self, enable, volumeNode):
+    displayNode = volumeNode.GetDisplayNode()
+    if enable:
+      # enable auto-contrast
+      # Save original window/level to volume node
+      volumeNode.SetAttribute("BreastImplantAnalyzer.OriginalWindow", str(displayNode.GetWindow()))
+      volumeNode.SetAttribute("BreastImplantAnalyzer.OriginalLevel", str(displayNode.GetLevel()))
+      # force recomputation of window/level
+      displayNode.AutoWindowLevelOff()
+      displayNode.AutoWindowLevelOn()
+    else:
+      # restore original window/level
+      if not self.isOriginalContrastAvailable(volumeNode):
+        raise ValueError("Failed to restore original window/level for volume node, previous values were not found")
+      originalWindow = volumeNode.GetAttribute("BreastImplantAnalyzer.OriginalWindow")
+      originalLevel = volumeNode.GetAttribute("BreastImplantAnalyzer.OriginalLevel")
+      # Remove original values so that the GUI knows that the original values are used now
+      volumeNode.SetAttribute("BreastImplantAnalyzer.OriginalWindow", "")
+      volumeNode.SetAttribute("BreastImplantAnalyzer.OriginalLevel", "")
+      displayNode.AutoWindowLevelOff()
+      displayNode.SetWindow(float(originalWindow))
+      displayNode.SetLevel(float(originalLevel))
+
   def setDefaultParameters(self, parameterNode):
     """
     Initialize parameter node with default settings.
     """
-    if not parameterNode.GetParameter("Threshold"):
-      parameterNode.SetParameter("Threshold", "0.0")
-    if not parameterNode.GetParameter("Invert"):
-      parameterNode.SetParameter("Invert", "false")
+    if not parameterNode.GetParameter("SeedLocality"):
+      parameterNode.SetParameter("SeedLocality", "0.0")
 
-  def run(self, inputVolume, outputVolume, imageThreshold, fidNode, initial_fiducial_count, showResult=True):
+  def computeImplantVolumeCc(self, inputVolume, fidNode, seedLocality):
     """
-    Run the processing algorithm.
-    Can be used without GUI widget.
+    Compute implant volume.
+    Can be used without GUI widget. Created segmentation node is saved in self.segmentationNode.
     :param inputVolume: volume to be thresholded
-    :param outputVolume: thresholding result
-    :param imageThreshold: values above/below this threshold will be set to 0
-    :param invert: if True then values above the threshold will be set to 0, otherwise values below are set to 0
-    :param showResult: show output volume in slice viewers
+    :param fidNode: input points, first point is inside, others are outside
+    :param seedLocality: if setting >0 value then region growing is more limited to neighborhood of provided seeds
     """
 
     if not inputVolume:
@@ -491,93 +430,37 @@ class BreastImplantAnalyzerLogic(ScriptedLoadableModuleLogic):
 
     logging.info('Processing started')
 
-    # Compute the thresholded output volume using the Threshold Scalar Volume CLI module
-    #cliParams = {
-    #  'InputVolume': inputVolume.GetID(),
-    #  'OutputVolume': outputVolume.GetID(),
-    #  'ThresholdValue' : imageThreshold,
-    #  'ThresholdType' : 'Above' if invert else 'Below'
-    #  }
-    #cliNode = slicer.cli.run(slicer.modules.thresholdscalarvolume, None, cliParams, wait_for_completion=True, update_display=showResult)
-
     masterVolumeNode = inputVolume
-    
-    # Create segmentation
-    #segmentationNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode")
-    #segmentationNode.CreateDefaultDisplayNodes() # only needed for display
-    #segmentationNode.SetReferenceImageGeometryParameterFromVolumeNode(masterVolumeNode)
-    #addedSegmentID = segmentationNode.GetSegmentation().AddEmptySegment("skin")
 
-    # Create segment editor to get access to effects
-    #segmentEditorWidget = slicer.qMRMLSegmentEditorWidget()
-    #segmentEditorWidget.setMRMLScene(slicer.mrmlScene)
-    #segmentEditorNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentEditorNode")
-    #segmentEditorWidget.setMRMLSegmentEditorNode(segmentEditorNode)
-    #segmentEditorWidget.setSegmentationNode(segmentationNode)
-    #segmentEditorWidget.setMasterVolumeNode(masterVolumeNode)
-
-    # Thresholding
-    #segmentEditorWidget.setActiveEffectByName("Threshold")
-    #effect = segmentEditorWidget.activeEffect()
-    #effect.setParameter("MinimumThreshold","10")
-    #effect.setParameter("MaximumThreshold","75")
-    #effect.self().onApply()
-    
     # Create segmentation
     segmentationNode = slicer.vtkMRMLSegmentationNode()
     slicer.mrmlScene.AddNode(segmentationNode)
     segmentationNode.CreateDefaultDisplayNodes() # only needed for display
     segmentationNode.SetReferenceImageGeometryParameterFromVolumeNode(masterVolumeNode)
 
-    #slicer.modules.markups.logic().AddFiducial()
-    #placeModePersistence = 1
-    #slicer.modules.markups.logic().StartPlaceMode(placeModePersistence)
-    #selectionNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSelectionNodeSingleton")
-    #selectionNode.SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsFiducialNode")
-    #interactionNode = slicer.mrmlScene.GetNodeByID("vtkMRMLInteractionNodeSingleton")
-    #placeModePersistence = 1
-    #interactionNode.SetPlaceModePersistence(placeModePersistence)
-    # mode 1 is Place, can also be accessed via slicer.vtkMRMLInteractionNode().Place
-    #interactionNode.SetCurrentInteractionMode(1)
-
-    # Create seed segment inside tumor
+    # Create seed segment inside implant
     tumorSeed = vtk.vtkSphereSource()
-    #tumorSeed.SetCenter(127, 241, 98)
     centerpoint = [0,0,0]
-    fidNode.GetNthFiducialPosition(initial_fiducial_count, centerpoint)
-    logging.info("center: " + str(centerpoint))
+    fidNode.GetNthFiducialPosition(0, centerpoint)
+    logging.info("inside: " + str(centerpoint))
     tumorSeed.SetCenter(centerpoint)
     tumorSeed.SetRadius(5)
     tumorSeed.Update()
-    segmentationNode.AddSegmentFromClosedSurfaceRepresentation(tumorSeed.GetOutput(), "Tumor", [1.0,0.0,0.0])
+    implantSegmentId = segmentationNode.AddSegmentFromClosedSurfaceRepresentation(tumorSeed.GetOutput(), "Implant", [1.0,0.0,0.0])
 
-    import numpy as np
-    nOfFiduciallPoints = fidNode.GetNumberOfFiducials()
-    #points = np.zeros([3,nOfFiduciallPoints])
-    points = np.zeros((nOfFiduciallPoints-initial_fiducial_count-2,3 ))
-    #logging.info(str(points[0]))
-    for i in range(nOfFiduciallPoints-initial_fiducial_count-2):
-        #logging.info(str(i))
-        fidNode.GetNthFiducialPosition(i+initial_fiducial_count+1, points[i])
-        #logging.info(str(points[i]))
-    #self.fidNode.GetNthFiducialPosition(self.initial_fiducial_count-1, coords)
-    #logging.info(str(points))
-    # Create seed segment outside tumor
-    #backgroundSeedPositions = [[151,303,98], [64,204,98], [158, 183, 98], [142,180,177], [127,211,18], [93, 168, 41]]
-    backgroundSeedPositions = points
+    # Create seed segment from points outside implant
     append = vtk.vtkAppendPolyData()
-    for backgroundSeedPosition in backgroundSeedPositions:
+    nOfFiduciallPoints = fidNode.GetNumberOfDefinedControlPoints()
+    for i in range(1, nOfFiduciallPoints):
+      fidNode.GetNthFiducialPosition(i, centerpoint)
       backgroundSeed = vtk.vtkSphereSource()
-      backgroundSeed.SetCenter(backgroundSeedPosition)
+      backgroundSeed.SetCenter(centerpoint)
+      logging.info("outside: " + str(centerpoint))
       backgroundSeed.SetRadius(3)
       backgroundSeed.Update()
       append.AddInputData(backgroundSeed.GetOutput())
-
     append.Update()
     backgroundSegmentId = segmentationNode.AddSegmentFromClosedSurfaceRepresentation(append.GetOutput(), "Background", [0.0,1.0,0.0])
-
-    # Run filter
-    ################################################
 
     # Create segment editor to get access to effects
     segmentEditorWidget = slicer.qMRMLSegmentEditorWidget()
@@ -594,24 +477,17 @@ class BreastImplantAnalyzerLogic(ScriptedLoadableModuleLogic):
     effect = segmentEditorWidget.activeEffect()
     # You can change parameters by calling: effect.setParameter("MyParameterName", someValue)
     # Most effect don't have onPreview, you can just call onApply
-    effect.setParameter("Seed locality", imageThreshold)
+    effect.setParameter("Seed locality", seedLocality)
     effect.self().onPreview()
     effect.self().onApply()
 
-    # Clean up and show results
-    ################################################
-
     # Clean up
     slicer.mrmlScene.RemoveNode(segmentEditorNode)
+    segmentationNode.RemoveSegment(backgroundSegmentId)
+    # save the created segmentation node, just in case the caller needs it (for adjusting visualization, removing it, etc.)
+    self.segmentationNode = segmentationNode
 
-    # Make segmentation results nicely visible in 3D
-    segmentationDisplayNode = segmentationNode.GetDisplayNode()
-    segmentationDisplayNode.SetSegmentVisibility(backgroundSegmentId, False)
-    #segmentationNode.CreateClosedSurfaceRepresentation()
-    
-    
     # Compute segment volumes
-    resultsTableNode = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLTableNode')
     import SegmentStatistics
     segStatLogic = SegmentStatistics.SegmentStatisticsLogic()
     segStatLogic.getParameterNode().SetParameter("Segmentation", segmentationNode.GetID())
@@ -620,15 +496,12 @@ class BreastImplantAnalyzerLogic(ScriptedLoadableModuleLogic):
     segStatLogic.getParameterNode().SetParameter("ScalarVolumeSegmentStatisticsPlugin.voxel_count.enabled","False")
     segStatLogic.getParameterNode().SetParameter("ScalarVolumeSegmentStatisticsPlugin.volume_mm3.enabled","False")
     segStatLogic.computeStatistics()
-    segStatLogic.exportToTable(resultsTableNode)
-    #segStatLogic.showTable(resultsTableNode)
-    logging.info("result: " + resultsTableNode.GetCellText(0,4))    
+    # print(segStatLogic.getStatistics())  # prints all computed metrics
+    implantVolumeCc = segStatLogic.getStatistics()[implantSegmentId,"ScalarVolumeSegmentStatisticsPlugin.volume_cm3"]
+    logging.info("Processing result: " + str(implantVolumeCc))
 
-    
-    return resultsTableNode.GetCellText(0,1)
-    
-    logging.info('Processing completed')
-    
+    return implantVolumeCc
+
 
 #
 # BreastImplantAnalyzerTest
@@ -666,37 +539,36 @@ class BreastImplantAnalyzerTest(ScriptedLoadableModuleTest):
 
     self.delayDisplay("Starting the test")
 
-    # Get/create input data
+    import numpy as np
+    import numpy.testing as npt
 
+    # Get input image
     import SampleData
-    inputVolume = SampleData.downloadFromURL(
-      nodeNames='MRHead',
-      fileNames='MR-Head.nrrd',
-      uris='https://github.com/Slicer/SlicerTestingData/releases/download/MD5/39b01631b7b38232a220007230624c8e',
-      checksums='MD5:39b01631b7b38232a220007230624c8e')[0]
-    self.delayDisplay('Finished with download and loading')
+    inputVolume = SampleData.downloadSample('MRBreastImplant')
+    self.delayDisplay('Loaded test data set')
 
-    inputScalarRange = inputVolume.GetImageData().GetScalarRange()
-    self.assertEqual(inputScalarRange[0], 0)
-    self.assertEqual(inputScalarRange[1], 279)
+    # Set input seed positions
+    seedPointPositions = np.array(
+      [[ 90.53668037,  -9.29200187,  16.1472    ],
+       [103.62091215,  25.87187103,  16.1472    ],
+       [152.68678131,   2.15670093,  16.1472    ],
+       [ 86.44785794, -47.72693271,  16.1472    ],
+       [ 16.93787664,   0.52117196,  16.1472    ],
+       [ 70.09256822,  24.23634206, -77.13263692],
+       [ 83.1768    , -55.08681308, -42.15269808],
+       [155.95783925, -12.56305981, -42.15269808],
+       [ 71.7280972 ,  21.7830486 , -42.15269808],
+       [ 83.99456449,  13.60540374,  74.44709808],
+       [132.24266916, -17.46964673,  74.44709808],
+       [ 43.92410467, -54.2690486 ,  74.44709808],
+       [ 79.08797757, -20.74070467, 109.42703692],
+       [ 81.54127103, -22.37623364, 109.42703692]])
+    seedPointsNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode")
+    slicer.util.updateMarkupsControlPointsFromArray(seedPointsNode, seedPointPositions)
 
-    outputVolume = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode")
-    threshold = 50
-
-    # Test the module logic
-
+    # Test volume computation
     logic = BreastImplantAnalyzerLogic()
-
-    # Test algorithm with non-inverted threshold
-    #logic.run(inputVolume, threshold, True)
-    #outputScalarRange = outputVolume.GetImageData().GetScalarRange()
-    #self.assertEqual(outputScalarRange[0], inputScalarRange[0])
-    #self.assertEqual(outputScalarRange[1], threshold)
-
-    # Test algorithm with inverted threshold
-    #logic.run(inputVolume, outputVolume, threshold, False)
-    #outputScalarRange = outputVolume.GetImageData().GetScalarRange()
-    #self.assertEqual(outputScalarRange[0], inputScalarRange[0])
-    #self.assertEqual(outputScalarRange[1], inputScalarRange[1])
+    implantVolumeCc = logic.computeImplantVolumeCc(inputVolume, seedPointsNode, 0.0)
+    npt.assert_almost_equal(implantVolumeCc, 352.6, decimal = 1)
 
     self.delayDisplay('Test passed')
