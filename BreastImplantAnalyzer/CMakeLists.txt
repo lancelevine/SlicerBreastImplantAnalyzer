@@ -1,5 +1,5 @@
 #-----------------------------------------------------------------------------
-set(MODULE_NAME ImplantSizer)
+set(MODULE_NAME BreastImplantAnalyzer)
 
 #-----------------------------------------------------------------------------
 set(MODULE_PYTHON_SCRIPTS

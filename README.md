@@ -27,7 +27,7 @@ A 3D Slicer extension for analyzing breast implants. Current functionality inclu
 
 4.5. To try the module, "MRBreastImplant" sample data set can be used.
 
-5. Switch to the ImplantSizer module
+5. Switch to the Breast Implant Analyzer module
 
 ![Alt text](img/module.PNG?raw=true "Switch to module")
 
