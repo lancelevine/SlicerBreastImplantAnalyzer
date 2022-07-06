@@ -4,7 +4,7 @@ project(BreastImplantAnalyzer)
 
 #-----------------------------------------------------------------------------
 # Extension meta-information
-set(EXTENSION_HOMEPAGE "https://www.slicer.org/wiki/Documentation/Nightly/Extensions/BreastImplantAnalyzer")
+set(EXTENSION_HOMEPAGE "https://github.com/lassoan/SlicerBreastImplantAnalyzer")
 set(EXTENSION_CATEGORY "Quantification")
 set(EXTENSION_CONTRIBUTORS "Lance Levine (University of Miami Miller School of Medicine), Marc Levine, Dr. Wrood Kassira (University of Miami Department of Plastic Surgery)")
 set(EXTENSION_DESCRIPTION "This is an example of a simple extension")
