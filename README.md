@@ -1,10 +1,15 @@
 # BreastImplantAnalyzer
 A 3D Slicer extension for analyzing breast implants. Current functionality includes volume calculation.
 
+Details of the extension are provided in: *L. Levine, W. Kassira, "BreastImplantAnalyzer: An Easy-to-use, Validated Tool for Calculating Breast Implant Volume from MRI Data", Journal of Plastic, Reconstructive & Aesthetic Surgery, 2021, [DOI](https://doi.org/10.1016/j.bjps.2021.03.068), [ScienceDirect](https://www.sciencedirect.com/science/article/pii/S1748681521001583)*
+
 ![Alt text](Screenshot01.PNG?raw=true "BreastImplantAnalyzer User Interface")
 
 ## Installation
 
+Standalone installation package is available at https://www.breastimplantanalyzer.com/.
+
+Alternatively, the tool can be installed as an extension to 3D Slicer:
 * Download and install the latest preview release version of 3D Slicer (https://download.slicer.org).
 * Start 3D Slicer application, open the Extension Manager (menu: View / Extension manager)
 * Install BreastImplantAnalyzer extension.

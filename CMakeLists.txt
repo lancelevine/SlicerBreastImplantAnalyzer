@@ -4,12 +4,12 @@ project(BreastImplantAnalyzer)
 
 #-----------------------------------------------------------------------------
 # Extension meta-information
-set(EXTENSION_HOMEPAGE "https://www.slicer.org/wiki/Documentation/Nightly/Extensions/BreastImplantAnalyzer")
+set(EXTENSION_HOMEPAGE "https://github.com/lassoan/SlicerBreastImplantAnalyzer")
 set(EXTENSION_CATEGORY "Quantification")
 set(EXTENSION_CONTRIBUTORS "Lance Levine (University of Miami Miller School of Medicine), Marc Levine, Dr. Wrood Kassira (University of Miami Department of Plastic Surgery)")
 set(EXTENSION_DESCRIPTION "This is an example of a simple extension")
-set(EXTENSION_ICONURL "http://www.example.com/Slicer/Extensions/BreastImplantAnalyzer.png")
-set(EXTENSION_SCREENSHOTURLS "http://www.example.com/Slicer/Extensions/BreastImplantAnalyzer/Screenshots/1.png")
+set(EXTENSION_ICONURL "https://raw.githubusercontent.com/lancelevine/SlicerBreastImplantAnalyzer/master/BreastImplantAnalyzer.png")
+set(EXTENSION_SCREENSHOTURLS "https://raw.githubusercontent.com/lancelevine/SlicerBreastImplantAnalyzer/master/Screenshot01.PNG")
 set(EXTENSION_DEPENDS "NA") # Specified as a list or "NA" if no dependencies
 
 #-----------------------------------------------------------------------------
